@@ -1,0 +1,26 @@
+[project]
+name = "langchain-app"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Peter Huang",email = "petersuper03@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12,<4.0.0"
+dependencies = [
+    "pydantic-settings (>=2.13.1,<3.0.0)",
+    "requests (>=2.32.5,<3.0.0)",
+    "langchain (>=1.2.10,<2.0.0)",
+    "langchain-openai (>=1.1.10,<2.0.0)",
+    "langchain-classic (>=1.0.1,<2.0.0)",
+    "chromadb (>=1.5.2,<2.0.0)",
+    "langchain-chroma (>=1.1.0,<2.0.0)",
+    "langchain-huggingface (>=1.2.1,<2.0.0)",
+    "apscheduler (>=3.11.2,<4.0.0)",
+    "sentence-transformers (>=5.2.3,<6.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
