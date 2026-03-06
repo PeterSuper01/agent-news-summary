@@ -19,6 +19,7 @@ class Settings(BaseSettings):
 
     # Chroma DB
     CHROMA_DB_DIR: str = "./chroma_langchain_db"
+    CHROMA_DB_COLLECTION_DISTANCE_METRIC: str = "cosine"  # "l2" or "cosine" or "ip"
     EMBEDDING_MODEL_CACHE_FOLDER: str = "./models/embedding_models"
     EMBEDDING_MODEL_NAME: str = "sentence-transformers/all-mpnet-base-v2"
 

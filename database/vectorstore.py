@@ -26,6 +26,9 @@ class NewsVectorstore:
             collection_name=collection_name,
             embedding_function=self.embeddings,
             persist_directory=persist_dir,
+            collection_configuration={
+                "hnsw": {"space": settings.CHROMA_DB_COLLECTION_DISTANCE_METRIC}
+            },
         )
 
     def add_documents(self, documents: list[Document]):
