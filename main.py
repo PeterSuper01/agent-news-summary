@@ -15,7 +15,22 @@ agent = create_agent(
 )
 
 if __name__ == "__main__":
-    input_message_from_user = input("Let's see what's new in the world: ")
-    response = agent.invoke({"messages": [HumanMessage(input_message_from_user)]})
-    last_message_from_agent = response["messages"][-1].content
-    print(last_message_from_agent)
+    print("Type 'quit', 'exit', or 'q' to end the conversation.\n")
+
+    messages = []
+
+    while True:
+        input_message_from_user = input("Let's see what's new in the world: ")
+
+        if input_message_from_user.lower() in ["quit", "exit", "q"]:
+            print("Have a nice day!")
+            break
+
+        if not input_message_from_user:
+            continue
+
+        messages.append(HumanMessage(input_message_from_user))
+        response = agent.invoke({"messages": messages})
+        messages = response["messages"]
+        last_message_from_agent = messages[-1].content
+        print(f"\nAgent: {last_message_from_agent}\n")
