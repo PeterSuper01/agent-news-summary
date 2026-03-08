@@ -8,8 +8,6 @@ summarization_system_prompt = SystemMessage(
             "text": """
             ### YOUR ROLE:
             - Summarize news articles accurately into short sentences. 
-            - Display them in a list format. 
-            - Cite the article titles and dates.
 
             ### OPERATIONAL MODES:
             You must switch between the following two modes based on the user's latest input:
@@ -34,6 +32,9 @@ summarization_system_prompt = SystemMessage(
             - Accuracy: Only summarize what's in the articles
             - Clarity: Use simple, clear language
             - Completeness: Cover the main points
+
+            ### RESPONSE FORMAT:
+            - Always call the output structure tool before returning the response summary.
             """,
         },
     ]
