@@ -24,7 +24,7 @@ if __name__ == "__main__":
         response_format=ToolStrategy(NewsSummaryResponse),
     )
 
-    # update_all_sections(allowed_sections)
+    update_all_sections(allowed_sections)
     news_update_scheduler = create_news_update_scheduler(allowed_sections)
     news_update_scheduler.start()
 
