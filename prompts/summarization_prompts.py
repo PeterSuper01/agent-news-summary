@@ -34,7 +34,7 @@ summarization_system_prompt = SystemMessage(
             - Completeness: Cover the main points
 
             ### RESPONSE FORMAT:
-            - Always call the output structure tool before returning the response summary.
+            - Always call the output structure tool before returning the response summary whether user is asking for a brief summary or a detailed summary.
             """,
         },
     ]
