@@ -1,4 +1,4 @@
-from apscheduler.schedulers.blocking import BlockingScheduler
+from apscheduler.schedulers.background import BackgroundScheduler
 
 from app.config import settings
 from background_service.tasks import clear_expired_news, update_all_sections
@@ -6,7 +6,7 @@ from news.allowed_sections import allowed_sections
 
 
 def create_news_update_scheduler(sections: list[str]):
-    scheduler = BlockingScheduler()
+    scheduler = BackgroundScheduler()
     scheduler.add_job(
         update_all_sections,
         "interval",
@@ -19,7 +19,7 @@ def create_news_update_scheduler(sections: list[str]):
 
 
 def create_expired_news_cleanup_scheduler():
-    scheduler = BlockingScheduler()
+    scheduler = BackgroundScheduler()
     scheduler.add_job(
         clear_expired_news,
         "interval",
