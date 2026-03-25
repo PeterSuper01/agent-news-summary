@@ -1,7 +1,7 @@
 from huggingface_hub.utils import are_progress_bars_disabled
 from langchain.agents.structured_output import ToolStrategy
 
-from agents.schemes import NewsSummaryResponse
+from agents.schemes import NewsSummaryResponse, parse_news_summary_response_to_dict
 from app.config import settings
 from agents.tools import retrieve_news_from_vectorstore
 from background_service.scheduler import (
@@ -21,14 +21,16 @@ if __name__ == "__main__":
         model=create_openai_llm(settings.OPENROUTER_MODEL_NAME),
         tools=[retrieve_news_from_vectorstore],
         system_prompt=summarization_system_prompt,
-        response_format=ToolStrategy(NewsSummaryResponse),
+        response_format=ToolStrategy(
+            NewsSummaryResponse, tool_message_content="Returning structured response:"
+        ),
     )
 
-    update_all_sections(allowed_sections)
+    # update_all_sections(allowed_sections)
     news_update_scheduler = create_news_update_scheduler(allowed_sections)
     news_update_scheduler.start()
 
-    clear_expired_news()
+    # clear_expired_news()
     expired_news_cleanup_scheduler = create_expired_news_cleanup_scheduler()
     expired_news_cleanup_scheduler.start()
 
@@ -48,6 +50,5 @@ if __name__ == "__main__":
 
         messages.append(HumanMessage(input_message_from_user))
         response = agent.invoke({"messages": messages})
-        messages = response["messages"]
-        last_message_from_agent = messages[-1].content
-        print(f"\n{last_message_from_agent}\n")
+        messages = response["structured_response"]
+        print(f"\n{messages.model_dump_json(indent=2)}\n")

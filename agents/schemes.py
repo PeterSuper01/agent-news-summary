@@ -28,10 +28,11 @@ class NewsSummary(BaseModel):
     )
 
     entities: Optional[str] = Field(
-        description="Key people, organizations, or locations mentioned"
+        None, description="Key people, organizations, or locations mentioned"
     )
     sentiment: Optional[str] = Field(
-        description="The overall tone of the article (e.g., Neutral, Positive, Negative)"
+        None,
+        description="The overall tone of the article (e.g., Neutral, Positive, Negative)",
     )
 
 
