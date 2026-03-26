@@ -4,9 +4,15 @@ from langchain.agents.structured_output import ToolStrategy
 from agents.schemes import NewsSummaryResponse
 from app.config import settings
 from agents.tools import retrieve_news_from_vectorstore
+from background_service.scheduler import (
+    create_news_update_scheduler,
+    create_expired_news_cleanup_scheduler,
+)
+from background_service.tasks import update_all_sections, clear_expired_news
 from create_models.llms import create_openai_llm
 from langchain.agents.factory import create_agent
 from langchain.messages import HumanMessage
+from news.allowed_sections import allowed_sections
 from prompts.summarization_prompts import summarization_system_prompt
 
 
@@ -20,6 +26,15 @@ async def start():
             NewsSummaryResponse, tool_message_content="Returning structured response:"
         ),
     )
+
+    update_all_sections(allowed_sections)
+    news_update_scheduler = create_news_update_scheduler(allowed_sections)
+    news_update_scheduler.start()
+
+    clear_expired_news()
+    expired_news_cleanup_scheduler = create_expired_news_cleanup_scheduler()
+
+    expired_news_cleanup_scheduler.start()
     cl.user_session.set("agent", agent)
     cl.user_session.set("messages", [])
 
