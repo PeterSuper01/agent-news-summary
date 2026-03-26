@@ -17,7 +17,8 @@ dependencies = [
     "langchain-chroma (>=1.1.0,<2.0.0)",
     "langchain-huggingface (>=1.2.1,<2.0.0)",
     "apscheduler (>=3.11.2,<4.0.0)",
-    "sentence-transformers (>=5.2.3,<6.0.0)"
+    "sentence-transformers (>=5.2.3,<6.0.0)",
+    "chainlit (>=2.10.0,<3.0.0)"
 ]
 
 

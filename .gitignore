@@ -4,4 +4,6 @@ chroma_langchain_db/
 models/
 .env
 .cursor/
+.chainlit/
+chainlit.md
 
