@@ -26,11 +26,11 @@ if __name__ == "__main__":
         ),
     )
 
-    # update_all_sections(allowed_sections)
+    update_all_sections(allowed_sections)
     news_update_scheduler = create_news_update_scheduler(allowed_sections)
     news_update_scheduler.start()
 
-    # clear_expired_news()
+    clear_expired_news()
     expired_news_cleanup_scheduler = create_expired_news_cleanup_scheduler()
     expired_news_cleanup_scheduler.start()
 
@@ -50,5 +50,5 @@ if __name__ == "__main__":
 
         messages.append(HumanMessage(input_message_from_user))
         response = agent.invoke({"messages": messages})
-        messages = response["structured_response"]
-        print(f"\n{messages.model_dump_json(indent=2)}\n")
+        structured_response = response["structured_response"]
+        print(f"\n{structured_response.model_dump_json(indent=2)}\n")
