@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     # Vectorstore
     VECTORSTORE_SEARCH_K: int = 3
 
+    # Scheduler
+    SCHEDULER_INITIALIZED: bool = False
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

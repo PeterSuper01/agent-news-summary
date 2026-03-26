@@ -1,3 +1,4 @@
+import asyncio
 import chainlit as cl
 from langchain.agents.structured_output import ToolStrategy
 
@@ -15,9 +16,15 @@ from langchain.messages import HumanMessage
 from news.allowed_sections import allowed_sections
 from prompts.summarization_prompts import summarization_system_prompt
 
+news_scheduler = None
+cleanup_scheduler = None
+_scheduler_initialized = settings.SCHEDULER_INITIALIZED
+
 
 @cl.on_chat_start
 async def start():
+    asyncio.create_task(asyncio.to_thread(init_background_services))
+
     agent = create_agent(
         model=create_openai_llm(settings.OPENROUTER_MODEL_NAME),
         tools=[retrieve_news_from_vectorstore],
@@ -27,14 +34,6 @@ async def start():
         ),
     )
 
-    update_all_sections(allowed_sections)
-    news_update_scheduler = create_news_update_scheduler(allowed_sections)
-    news_update_scheduler.start()
-
-    clear_expired_news()
-    expired_news_cleanup_scheduler = create_expired_news_cleanup_scheduler()
-
-    expired_news_cleanup_scheduler.start()
     cl.user_session.set("agent", agent)
     cl.user_session.set("messages", [])
 
@@ -87,3 +86,17 @@ def format_for_display(data: dict) -> str:
         output += "\n---\n"
 
     return output
+
+
+def init_background_services():
+    global news_scheduler, cleanup_scheduler, _scheduler_initialized
+    if not _scheduler_initialized:
+        update_all_sections(allowed_sections)
+        news_update_scheduler = create_news_update_scheduler(allowed_sections)
+        news_update_scheduler.start()
+
+        clear_expired_news()
+        expired_news_cleanup_scheduler = create_expired_news_cleanup_scheduler()
+        expired_news_cleanup_scheduler.start()
+
+        _scheduler_initialized = True
