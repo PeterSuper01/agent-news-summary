@@ -5,6 +5,7 @@ A conversational AI agent built with LangChain that retrieves and summarizes new
 ## Features
 
 - **Conversational Agent Interface** - Interactive chat-based interface for querying news articles
+- **Chainlit Web UI** - Browser-based chat interface with Markdown-rendered, structured news summaries
 - **Semantic Search** - Vector embeddings enable intelligent document retrieval based on meaning
 - **Automated News Updates** - Scheduled background tasks fetch latest articles every 6 hours
 - **Expired News Clears** - Automatic cleanup of articles older than 7 days
@@ -14,6 +15,7 @@ A conversational AI agent built with LangChain that retrieves and summarizes new
 ## Technologies & Techniques Used
 
 - **LangChain** - Agent framework, document loaders, and vector store integration
+- **Chainlit** - Web-based conversational UI with Markdown rendering and session management
 - **ChromaDB** - Vector database for efficient semantic search and similarity matching
 - **Hugging Face Transformers** - Sentence embeddings using `all-mpnet-base-v2` model
 - **Semantic Search** - Cosine similarity-based document retrieval
@@ -43,7 +45,9 @@ langchain_app/
 │   └── loader.py            # The Guardian API loader (BaseNewsLoader pattern)
 ├── prompts/
 │   └── summarization_prompts.py  # System prompts for agent behavior
-├── main.py                  # Entry point - agent initialization and chat loop
+├── chainlit_app.py          # Chainlit web UI entry point
+├── chainlit.md              # Chainlit welcome message configuration
+├── main.py                  # CLI entry point - agent initialization and chat loop
 └── pyproject.toml           # Poetry dependencies
 ```
 
@@ -71,6 +75,8 @@ langchain_app/
 
 ## Usage
 
+### CLI Mode
+
 **Running the application:**
 ```bash
 python main.py
@@ -89,5 +95,26 @@ Let's see what's new in the world: Tell me more about the first article
 Let's see what's new in the world: quit
 Have a nice day!
 ```
+
+### Chainlit Web UI
+
+![Chainlit UI](assets/image.png)
+
+A browser-based chat interface with formatted Markdown output. Background services (news updates and cleanup) start automatically when the first chat session begins.
+
+**Running the Chainlit app:**
+```bash
+chainlit run chainlit_app.py
+```
+
+By default the server starts at `http://localhost:8000`. Open that URL in your browser to start chatting.
+
+**Optional flags:**
+```bash
+chainlit run chainlit_app.py --port 8080   # change port
+chainlit run chainlit_app.py -w            # enable auto-reload on file changes
+```
+
+Each conversation session maintains its own message history. The response is rendered as structured Markdown showing the search analysis, article links, sentiment, key summary points, and background context.
 
 
