@@ -1,5 +1,11 @@
 import asyncio
+import logging
 import chainlit as cl
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
+)
 from langchain.agents.structured_output import ToolStrategy
 
 from agents.schemes import NewsSummaryResponse

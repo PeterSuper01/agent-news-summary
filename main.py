@@ -1,7 +1,13 @@
-from huggingface_hub.utils import are_progress_bars_disabled
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
+)
+
 from langchain.agents.structured_output import ToolStrategy
 
-from agents.schemes import NewsSummaryResponse, parse_news_summary_response_to_dict
+from agents.schemes import NewsSummaryResponse
 from app.config import settings
 from agents.tools import retrieve_news_from_vectorstore
 from background_service.scheduler import (
