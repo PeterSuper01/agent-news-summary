@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import time
 from datetime import datetime, timedelta
 
@@ -10,6 +11,8 @@ from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from news.allowed_sections import AllowedSectionInput
 import transformers.utils.logging
+
+logger = logging.getLogger(__name__)
 
 # Suppress output when loading the embedding model
 transformers.utils.logging.set_verbosity_error()
@@ -50,6 +53,8 @@ class NewsVectorstore:
         article_ids = []
         articles = []
 
+        skipped_expired = 0
+        skipped_no_url = 0
         for doc in documents:
             if (
                 time.time() - doc.metadata.get("public_date")
@@ -66,14 +71,20 @@ class NewsVectorstore:
                         chunk_ids.append(f"{url_hash}_{i}")
                         chunks.append(chunk)
                 else:
-                    print(
-                        f"Warning: Skipping document with no article URL: {doc.metadata}"
-                    )
+                    skipped_no_url += 1
+                    logger.warning("Skipping document with no article URL: %s", doc.metadata)
+            else:
+                skipped_expired += 1
+
+        if skipped_expired:
+            logger.info("Skipped %d expired articles (> 7 days old)", skipped_expired)
+        if skipped_no_url:
+            logger.info("Skipped %d articles with no URL", skipped_no_url)
 
         if articles:
             self.article_store.add_documents(documents=articles, ids=article_ids)
-        if chunks:
             self.chunk_store.add_documents(documents=chunks, ids=chunk_ids)
+            logger.info("Stored %d articles as %d chunks", len(articles), len(chunks))
 
     def search(
         self, query: str, section_input: AllowedSectionInput = None, k: int = 5
