@@ -7,6 +7,7 @@ from huggingface_hub.utils import disable_progress_bars
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from news.allowed_sections import AllowedSectionInput
 import transformers.utils.logging
 
@@ -16,41 +17,63 @@ transformers.utils.logging.disable_progress_bar()
 
 
 class NewsVectorstore:
-    def __init__(self, persist_dir: str, collection_name: str):
+    def __init__(self, persist_dir: str):
         self.embeddings = HuggingFaceEmbeddings(
             model_name=settings.EMBEDDING_MODEL_NAME,
             cache_folder=settings.EMBEDDING_MODEL_CACHE_FOLDER,
             model_kwargs={"token": settings.HF_TOKEN},
         )
-        self.vector_store = Chroma(
-            collection_name=collection_name,
+        self.chunk_store = Chroma(
+            collection_name=settings.CHROMA_DB_CHUNKS_COLLECTION,
             embedding_function=self.embeddings,
             persist_directory=persist_dir,
             collection_configuration={
                 "hnsw": {"space": settings.CHROMA_DB_COLLECTION_DISTANCE_METRIC}
             },
         )
+        self.article_store = Chroma(
+            collection_name=settings.CHROMA_DB_ARTICLES_COLLECTION,
+            embedding_function=self.embeddings,
+            persist_directory=persist_dir,
+            collection_configuration={
+                "hnsw": {"space": settings.CHROMA_DB_COLLECTION_DISTANCE_METRIC}
+            },
+        )
+        self._splitter = RecursiveCharacterTextSplitter(
+            chunk_size=settings.VECTORSTORE_CHUNK_SIZE,
+            chunk_overlap=settings.VECTORSTORE_CHUNK_OVERLAP,
+        )
 
     def add_documents(self, documents: list[Document]):
-        ids = []
-        valid_docs = []
+        chunk_ids = []
+        chunks = []
+        article_ids = []
+        articles = []
+
         for doc in documents:
-            # only keep news within 7 days
             if (
                 time.time() - doc.metadata.get("public_date")
                 < timedelta(days=7).total_seconds()
             ):
                 url = doc.metadata.get("article_url")
                 if url:
-                    content_hash = hashlib.md5(url.encode()).hexdigest()
-                    ids.append(content_hash)
-                    valid_docs.append(doc)
+                    url_hash = hashlib.md5(url.encode()).hexdigest()
+
+                    article_ids.append(url_hash)
+                    articles.append(doc)
+
+                    for i, chunk in enumerate(self._splitter.split_documents([doc])):
+                        chunk_ids.append(f"{url_hash}_{i}")
+                        chunks.append(chunk)
                 else:
                     print(
                         f"Warning: Skipping document with no article URL: {doc.metadata}"
                     )
-        if len(valid_docs) > 0:
-            self.vector_store.add_documents(documents=valid_docs, ids=ids)
+
+        if articles:
+            self.article_store.add_documents(documents=articles, ids=article_ids)
+        if chunks:
+            self.chunk_store.add_documents(documents=chunks, ids=chunk_ids)
 
     def search(
         self, query: str, section_input: AllowedSectionInput = None, k: int = 5
@@ -59,12 +82,30 @@ class NewsVectorstore:
         if section_input:
             search_filter["section"] = section_input.value
 
-        return self.vector_store.similarity_search(
+        matched_chunks = self.chunk_store.similarity_search(
             query, k=k, filter=search_filter if search_filter else None
         )
 
+        seen_urls = []
+        for chunk in matched_chunks:
+            url = chunk.metadata.get("article_url")
+            if url and url not in seen_urls:
+                seen_urls.append(url)
+
+        if not seen_urls:
+            return []
+
+        article_ids = [hashlib.md5(url.encode()).hexdigest() for url in seen_urls]
+        result = self.article_store._collection.get(
+            ids=article_ids, include=["documents", "metadatas"]
+        )
+        return [
+            Document(page_content=content, metadata=meta)
+            for content, meta in zip(result["documents"], result["metadatas"])
+        ]
+
     def clear_expired_news(self, days: int = 7):
         cutoff_date = time.mktime((datetime.now() - timedelta(days=days)).timetuple())
-        self.vector_store._collection.delete(
-            where={"public_date": {"$lt": cutoff_date}}
-        )
+        where = {"public_date": {"$lt": cutoff_date}}
+        self.chunk_store._collection.delete(where=where)
+        self.article_store._collection.delete(where=where)
