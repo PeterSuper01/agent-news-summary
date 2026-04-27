@@ -7,7 +7,6 @@ class Settings(BaseSettings):
     THEGUARDIAN_SECTION_URL: str = "https://content.guardianapis.com/sections"
     THEGUARDIAN_NEWS_UPDATE_INTERVAL_HOURS: int = 6
     THEGUARDIAN_NEWS_UPDATE_PAGE_SIZE: int = 10
-    THEGUARDIAN_NEWS_SUMMARY_MAX_LENGTH: int = 1000
 
     # OpenRouter
     OPENROUTER_API_KEY: str
@@ -25,6 +24,10 @@ class Settings(BaseSettings):
 
     # Vectorstore
     VECTORSTORE_SEARCH_K: int = 3
+    VECTORSTORE_CHUNK_SIZE: int = 500
+    VECTORSTORE_CHUNK_OVERLAP: int = 50
+    CHROMA_DB_CHUNKS_COLLECTION: str = "news_chunks"
+    CHROMA_DB_ARTICLES_COLLECTION: str = "news_articles"
 
     # Scheduler
     SCHEDULER_INITIALIZED: bool = False
@@ -32,4 +35,4 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
-settings = Settings()
+settings = Settings() # type: ignore #
