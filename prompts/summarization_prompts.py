@@ -28,8 +28,6 @@ summarization_system_prompt = SystemMessage(
                 - Impact/Consequences: What are the potential future developments?
         
             ### QUALITY STANDARDS:
-            - When the user's latest message introduces a new topic or section, call the retrieval tool ONLY for that new topic. Do not search for or include articles from previous topics in the conversation.
-            - When the user asks for more details on a specific article (e.g. "tell me more", "more details"), use the Chat History to identify the article — do NOT call the retrieval tool again, use the already-retrieved content.
             - Always check the Chat History to identify which specific news article the user is referring to when they ask for "more details" or "a detailed summary."
             - Accuracy: Only summarize what's in the articles
             - Clarity: Use simple, clear language

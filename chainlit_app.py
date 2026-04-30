@@ -42,7 +42,6 @@ async def start():
     )
 
     cl.user_session.set("agent", agent)
-    cl.user_session.set("messages", [])
 
     await cl.Message(
         content="Hello! Let's see what's new in the world. What topic would you like to know about today?"
@@ -52,10 +51,7 @@ async def start():
 @cl.on_message
 async def main(message: cl.Message):
     agent = cl.user_session.get("agent")
-    messages = cl.user_session.get("messages")
-    messages.append(HumanMessage(content=message.content))
-    response = await cl.make_async(agent.invoke)({"messages": messages})
-    cl.user_session.set("messages", response["messages"])
+    response = await cl.make_async(agent.invoke)({"messages": [HumanMessage(content=message.content)]})
     structured_response = response.get("structured_response")
     if structured_response is None:
         await cl.Message(content="I can only help with news queries. What topic would you like to know about?").send()
