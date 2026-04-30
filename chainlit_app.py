@@ -55,11 +55,12 @@ async def main(message: cl.Message):
     messages = cl.user_session.get("messages")
     messages.append(HumanMessage(content=message.content))
     response = await cl.make_async(agent.invoke)({"messages": messages})
-    structured_response = response["structured_response"]
+    structured_response = response.get("structured_response")
+    if structured_response is None:
+        await cl.Message(content="I can only help with news queries. What topic would you like to know about?").send()
+        return
     data_dict = structured_response.model_dump()
-    # Generate and send the formatted English UI
     formatted_content = format_for_display(data_dict)
-
     await cl.Message(content=formatted_content).send()
 
 
