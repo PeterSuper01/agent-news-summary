@@ -1,5 +1,4 @@
 import logging
-import time
 
 from app.config import settings
 from news.loader import TheGuardianLoader
@@ -22,12 +21,16 @@ def update_news_by_section(section: str):
     logger.info("Fetched %d articles for section: %s", len(docs), section)
     if docs:
         db.add_documents(docs)
+        logger.info("Updated %d docs for section: %s", len(docs), section)
+    else:
+        logger.info("No new docs for section: %s", section)
 
 
 def update_all_sections(sections: list[str]):
     logger.info("Starting news update for %d sections", len(sections))
     for section in sections:
         try:
+            logger.info("Updating section: %s", section)
             update_news_by_section(section)
         except Exception as e:
             logger.error("Failed to update section %s: %s", section, e, exc_info=True)
