@@ -20,6 +20,7 @@ from background_service.tasks import update_all_sections, clear_expired_news
 from create_models.llms import create_openai_llm
 from langchain.agents.factory import create_agent
 from langchain.messages import HumanMessage
+from langchain_core.messages import AIMessage
 from news.allowed_sections import allowed_sections
 from prompts.summarization_prompts import summarization_system_prompt
 
@@ -42,7 +43,8 @@ async def start():
     )
 
     cl.user_session.set("agent", agent)
-    cl.user_session.set("messages", [])
+    cl.user_session.set("history", [])
+    cl.user_session.set("last_response", None)
 
     await cl.Message(
         content="Hello! Let's see what's new in the world. What topic would you like to know about today?"
@@ -52,15 +54,37 @@ async def start():
 @cl.on_message
 async def main(message: cl.Message):
     agent = cl.user_session.get("agent")
-    messages = cl.user_session.get("messages")
-    messages.append(HumanMessage(content=message.content))
-    response = await cl.make_async(agent.invoke)({"messages": messages})
+    history = cl.user_session.get("history")
+    last_response = cl.user_session.get("last_response")
+
+    send_messages = list(history)
+    if last_response:
+        send_messages.append(AIMessage(
+            content=f"[Previous search results]\n{last_response.model_dump_json(indent=2)}"
+        ))
+    send_messages.append(HumanMessage(content=message.content))
+
+    response = await cl.make_async(agent.invoke)({"messages": send_messages})
+
+    tools_called = [
+        tc["name"]
+        for msg in response["messages"]
+        if isinstance(msg, AIMessage) and msg.tool_calls
+        for tc in msg.tool_calls
+    ]
+    logging.info("LLM tool calls: %s", tools_called)
+
     structured_response = response.get("structured_response")
     if structured_response is None:
         await cl.Message(content="I can only help with news queries. What topic would you like to know about?").send()
         return
-    data_dict = structured_response.model_dump()
-    formatted_content = format_for_display(data_dict)
+
+    history.append(HumanMessage(content=message.content))
+    cl.user_session.set("history", history)
+    if "retrieve_news_from_vectorstore" in tools_called:
+        cl.user_session.set("last_response", structured_response)
+
+    formatted_content = format_for_display(structured_response.model_dump())
     await cl.Message(content=formatted_content).send()
 
 
