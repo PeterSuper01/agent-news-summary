@@ -20,6 +20,7 @@ from background_service.tasks import update_all_sections, clear_expired_news
 from create_models.llms import create_openai_llm
 from langchain.agents.factory import create_agent
 from langchain.messages import HumanMessage
+from langchain_core.messages import AIMessage, ToolMessage
 from news.allowed_sections import allowed_sections
 from prompts.summarization_prompts import summarization_system_prompt
 
@@ -42,16 +43,63 @@ async def start():
     )
 
     cl.user_session.set("agent", agent)
+    cl.user_session.set("messages", [])
 
     await cl.Message(
         content="Hello! Let's see what's new in the world. What topic would you like to know about today?"
     ).send()
 
 
+def _strip_tool_messages(messages: list) -> list:
+    """Remove all tool call pairs (both retrieve_news and NewsSummaryResponse) from
+    message history.
+
+    Rationale: After each turn we only preserve HumanMessages and bare AIMessages
+    (text-only, no tool_calls). This prevents the LLM from being confused by stale
+    tool results when the user switches topics, while still giving the LLM enough
+    context to handle detail-mode follow-ups (the prior text response is preserved
+    in the AIMessage content if the LLM produced one, though with ToolStrategy the
+    LLM typically only calls tools and does not emit a text turn).
+
+    If the LLM emitted an AIMessage that has BOTH tool_calls and text content, we
+    strip the tool_calls and keep only the text content so conversation context is
+    maintained without confusing the routing logic.
+    """
+    # Collect all tool_call_ids so we can drop their paired ToolMessages.
+    all_tool_call_ids: set[str] = set()
+    for msg in messages:
+        if isinstance(msg, AIMessage) and msg.tool_calls:
+            for tc in msg.tool_calls:
+                all_tool_call_ids.add(tc["id"])
+
+    filtered = []
+    for msg in messages:
+        # Drop ToolMessages (responses to any tool call)
+        if isinstance(msg, ToolMessage):
+            continue
+        # For AIMessages that contain tool_calls, keep only text content if present;
+        # drop entirely if there is no text content (pure tool-call turn).
+        if isinstance(msg, AIMessage) and msg.tool_calls:
+            text_content = msg.content if isinstance(msg.content, str) else "".join(
+                block.get("text", "") if isinstance(block, dict) else str(block)
+                for block in msg.content
+            )
+            if text_content.strip():
+                # Preserve as a plain text AIMessage without tool_calls
+                filtered.append(AIMessage(content=text_content))
+            # else: pure tool-call turn with no text → drop entirely
+            continue
+        filtered.append(msg)
+    return filtered
+
+
 @cl.on_message
 async def main(message: cl.Message):
     agent = cl.user_session.get("agent")
-    response = await cl.make_async(agent.invoke)({"messages": [HumanMessage(content=message.content)]})
+    messages = cl.user_session.get("messages")
+    messages.append(HumanMessage(content=message.content))
+    response = await cl.make_async(agent.invoke)({"messages": messages})
+    cl.user_session.set("messages", _strip_tool_messages(response["messages"]))
     structured_response = response.get("structured_response")
     if structured_response is None:
         await cl.Message(content="I can only help with news queries. What topic would you like to know about?").send()

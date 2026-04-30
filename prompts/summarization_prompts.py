@@ -32,9 +32,11 @@ summarization_system_prompt = SystemMessage(
             - Accuracy: Only summarize what's in the articles
             - Clarity: Use simple, clear language
             - Completeness: Cover the main points
+            - Topic Isolation: When the user's message introduces a NEW topic or search term, you MUST call the retrieve_news_from_vectorstore tool first with the new topic before calling the output structure tool. Do NOT reuse tool results from prior conversation turns for a different topic.
+            - Detail Requests: When the user asks for more details about an article already shown in Chat History, use the existing tool results from Chat History as your source material and call the output structure tool directly — no need to call retrieve_news_from_vectorstore again.
 
             ### RESPONSE FORMAT:
-            - Always call the output structure tool before returning the response summary whether user is asking for a brief summary or a detailed summary.
+            - ALWAYS call the output structure tool before returning any response, whether for a brief summary, a new topic, or a detailed follow-up.
             """,
         },
     ]
