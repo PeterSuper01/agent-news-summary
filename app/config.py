@@ -27,7 +27,6 @@ class Settings(BaseSettings):
     VECTORSTORE_CHUNK_SIZE: int = 500
     VECTORSTORE_CHUNK_OVERLAP: int = 50
     CHROMA_DB_CHUNKS_COLLECTION: str = "news_chunks"
-    CHROMA_DB_ARTICLES_COLLECTION: str = "news_articles"
 
     # Scheduler
     SCHEDULER_INITIALIZED: bool = False

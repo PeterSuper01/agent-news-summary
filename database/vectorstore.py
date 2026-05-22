@@ -1,10 +1,12 @@
 import hashlib
+import json
 import logging
+import sqlite3
+import threading
 import time
 from datetime import datetime, timedelta
 
 from app.config import settings
-from huggingface_hub.utils import disable_progress_bars
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
@@ -14,7 +16,6 @@ import transformers.utils.logging
 
 logger = logging.getLogger(__name__)
 
-# Suppress output when loading the embedding model
 transformers.utils.logging.set_verbosity_error()
 transformers.utils.logging.disable_progress_bar()
 
@@ -34,24 +35,28 @@ class NewsVectorstore:
                 "hnsw": {"space": settings.CHROMA_DB_COLLECTION_DISTANCE_METRIC}
             },
         )
-        self.article_store = Chroma(
-            collection_name=settings.CHROMA_DB_ARTICLES_COLLECTION,
-            embedding_function=self.embeddings,
-            persist_directory=persist_dir,
-            collection_configuration={
-                "hnsw": {"space": settings.CHROMA_DB_COLLECTION_DISTANCE_METRIC}
-            },
-        )
         self._splitter = RecursiveCharacterTextSplitter(
             chunk_size=settings.VECTORSTORE_CHUNK_SIZE,
             chunk_overlap=settings.VECTORSTORE_CHUNK_OVERLAP,
         )
+        self._sqlite_lock = threading.Lock()
+        self._sqlite_conn = sqlite3.connect(
+            f"{persist_dir}/articles.db", check_same_thread=False
+        )
+        self._sqlite_conn.execute("""
+            CREATE TABLE IF NOT EXISTS articles (
+                id TEXT PRIMARY KEY,
+                page_content TEXT NOT NULL,
+                metadata TEXT NOT NULL,
+                public_date REAL NOT NULL
+            )
+        """)
+        self._sqlite_conn.commit()
 
     def add_documents(self, documents: list[Document]):
         chunk_ids = []
         chunks = []
-        article_ids = []
-        articles = []
+        article_rows = []
 
         skipped_expired = 0
         skipped_no_url = 0
@@ -63,10 +68,12 @@ class NewsVectorstore:
                 url = doc.metadata.get("article_url")
                 if url:
                     url_hash = hashlib.md5(url.encode()).hexdigest()
-
-                    article_ids.append(url_hash)
-                    articles.append(doc)
-
+                    article_rows.append((
+                        url_hash,
+                        doc.page_content,
+                        json.dumps(doc.metadata),
+                        doc.metadata.get("public_date"),
+                    ))
                     for i, chunk in enumerate(self._splitter.split_documents([doc])):
                         chunk_ids.append(f"{url_hash}_{i}")
                         chunks.append(chunk)
@@ -81,10 +88,15 @@ class NewsVectorstore:
         if skipped_no_url:
             logger.info("Skipped %d articles with no URL", skipped_no_url)
 
-        if articles:
-            self.article_store.add_documents(documents=articles, ids=article_ids)
+        if article_rows:
+            with self._sqlite_lock:
+                self._sqlite_conn.executemany(
+                    "INSERT OR REPLACE INTO articles (id, page_content, metadata, public_date) VALUES (?, ?, ?, ?)",
+                    article_rows,
+                )
+                self._sqlite_conn.commit()
             self.chunk_store.add_documents(documents=chunks, ids=chunk_ids)
-            logger.info("Stored %d articles as %d chunks", len(articles), len(chunks))
+            logger.info("Stored %d articles as %d chunks", len(article_rows), len(chunks))
 
     def search(
         self, query: str, section_input: AllowedSectionInput = None, k: int = 5
@@ -107,16 +119,26 @@ class NewsVectorstore:
             return []
 
         article_ids = [hashlib.md5(url.encode()).hexdigest() for url in seen_urls]
-        result = self.article_store._collection.get(
-            ids=article_ids, include=["documents", "metadatas"]
-        )
+        rows = []
+        with self._sqlite_lock:
+            for article_id in article_ids:
+                row = self._sqlite_conn.execute(
+                    "SELECT page_content, metadata FROM articles WHERE id = ?",
+                    (article_id,),
+                ).fetchone()
+                if row:
+                    rows.append(row)
+
         return [
-            Document(page_content=content, metadata=meta)
-            for content, meta in zip(result["documents"], result["metadatas"])
+            Document(page_content=row[0], metadata=json.loads(row[1]))
+            for row in rows
         ]
 
     def clear_expired_news(self, days: int = 7):
         cutoff_date = time.mktime((datetime.now() - timedelta(days=days)).timetuple())
-        where = {"public_date": {"$lt": cutoff_date}}
-        self.chunk_store._collection.delete(where=where)
-        self.article_store._collection.delete(where=where)
+        self.chunk_store._collection.delete(where={"public_date": {"$lt": cutoff_date}})
+        with self._sqlite_lock:
+            self._sqlite_conn.execute(
+                "DELETE FROM articles WHERE public_date < ?", (cutoff_date,)
+            )
+            self._sqlite_conn.commit()
