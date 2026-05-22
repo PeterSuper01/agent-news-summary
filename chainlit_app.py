@@ -59,9 +59,11 @@ async def main(message: cl.Message):
 
     send_messages = list(history)
     if last_response:
-        send_messages.append(AIMessage(
-            content=f"[Previous search results]\n{last_response.model_dump_json(indent=2)}"
-        ))
+        send_messages.append(
+            AIMessage(
+                content=f"[Previous search results]\n{last_response.model_dump_json(indent=2)}"
+            )
+        )
     send_messages.append(HumanMessage(content=message.content))
 
     response = await cl.make_async(agent.invoke)({"messages": send_messages})
@@ -76,7 +78,9 @@ async def main(message: cl.Message):
 
     structured_response = response.get("structured_response")
     if structured_response is None:
-        await cl.Message(content="I can only help with news queries. What topic would you like to know about?").send()
+        await cl.Message(
+            content="I can only help with news queries. What topic would you like to know about?"
+        ).send()
         return
 
     history.append(HumanMessage(content=message.content))

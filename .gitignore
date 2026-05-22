@@ -7,3 +7,5 @@ models/
 .chainlit/
 chainlit.md
 
+.claude/
+.claudeignore
